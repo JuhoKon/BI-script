@@ -29,7 +29,12 @@ start_time = time.time()
 def getClientData():
   # Construct a BigQuery client object.
   client = bigquery.Client()
-  query = (f"SELECT * FROM `bigquery-public-data.chicago_taxi_trips.taxi_trips` LIMIT {rows}")
+  query = (f"""
+  SELECT * FROM `bigquery-public-data.chicago_taxi_trips.taxi_trips` 
+  WHERE trip_start_timestamp BETWEEN '2017-01-01' AND '2018-01-01'
+  ORDER BY trip_start_timestamp ASC
+  LIMIT {rows}
+  """)
 
   query_job = client.query(query)  # Make an API request.
   return query_job
