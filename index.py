@@ -5,20 +5,21 @@ import threading, queue
 import queries
 import sys
 
+insert_dim = queries.insert_dim_location_query
+dim_time = queries.insert_dim_time_query
 q = queue.Queue()
 
-def worker():
-    connection = getConnection()
+def worker(connection):
     while True:
         item = q.get()
         try:
           ### Do inserts
           dim_location_id = executeManyQuery(queries.insert_dim_location_query,[(item.pickup_location,item.dropoff_location)],connection)
           dim_time_id = executeManyQuery(queries.insert_dim_time_query,[(item.trip_start_timestamp,item.trip_end_timestamp,item.trip_seconds)],connection)
-          dim_payment_id = executeManyQuery(queries.insert_dim_payment_query,[(item.payment_type,item.trip_total,item.fare,item.tips,item.tolls,item.extras)],connection) 
+          dim_payment_id = executeManyQuery(queries.insert_dim_payment_query,[(item.payment_type,item.trip_total,item.fare,item.tips,item.tolls,item.extras)],connection)
           executeManyQuery(queries.insert_dim_taxi_query,[(item.taxi_id,item.company)],connection)
           executeManyQuery(queries.insert_trips_query,[(item.unique_key,item.taxi_id,dim_time_id,dim_location_id,dim_payment_id,item.trip_miles)],connection)
-      
+          connection.commit()
         except Error as e:
           print(e)
         q.task_done()
@@ -69,8 +70,8 @@ def executeManyQuery(query,data,connection):
   try:
     with connection.cursor() as cursor:
       cursor.executemany(query,data)
-      connection.commit()
       row_id = (cursor.lastrowid)
+      #connection.commit()
       return row_id
   except Error as e:
     if (verbose):
@@ -88,13 +89,15 @@ def createTables():
   executeQuery(queries.create_table_dim_trips,connection)
 
 def main():
+
   # Create tables in case they don't exist
   createTables()
   
   # setup threads, although the real bottleneck is most likely internet speed
-  num_fetch_threads = 15
+  num_fetch_threads = 30
   for i in range(num_fetch_threads):
-    workerThread = threading.Thread(target=worker)
+    connection = getConnection()
+    workerThread = threading.Thread(target=worker, args=(connection,))
     workerThread.setDaemon(True)
     workerThread.start()
   
