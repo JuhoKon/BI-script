@@ -19,6 +19,7 @@ def worker(connection):
           dim_payment_id = executeManyQuery(queries.insert_dim_payment_query,[(item.payment_type,item.trip_total,item.fare,item.tips,item.tolls,item.extras)],connection)
           executeManyQuery(queries.insert_dim_taxi_query,[(item.taxi_id,item.company)],connection)
           executeManyQuery(queries.insert_trips_query,[(item.unique_key,item.taxi_id,dim_time_id,dim_location_id,dim_payment_id,item.trip_miles)],connection)
+          connection.commit()
         except Error as e:
           print(e)
         q.task_done()
@@ -70,7 +71,6 @@ def executeManyQuery(query,data,connection):
     with connection.cursor() as cursor:
       cursor.executemany(query,data)
       row_id = (cursor.lastrowid)
-      connection.commit()
       return row_id
   except Error as e:
     if (verbose):
